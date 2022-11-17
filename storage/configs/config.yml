@@ -1,0 +1,12 @@
+port: "8080"
+
+db:
+  username: "postgres"
+  host: "localhost"
+  port: "5432"
+  dbname: "storage"
+  sslmode: "disable"
+
+endpoint: "localhost:9000"
+accessKeyId: "minioadmin"
+secretaccessKeyId: "password"
