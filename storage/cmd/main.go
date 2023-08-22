@@ -2,19 +2,17 @@ package main
 
 import (
 	"context"
-	"github.com/joho/godotenv"
+	_ "github.com/lib/pq"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"os"
 	"os/signal"
-	"storage/pkg/minio"
-	"syscall"
-
-	_ "github.com/lib/pq"
 	handler2 "storage/internal/handler"
 	"storage/internal/repository"
 	"storage/internal/server"
 	service2 "storage/internal/service"
+	"storage/pkg/minio"
+	"syscall"
 )
 
 func main() {
@@ -24,15 +22,12 @@ func main() {
 		logrus.Fatalf("error initializing confis: %s", err.Error())
 		return
 	}
-	if err := godotenv.Load(); err != nil {
-		logrus.Fatalf("error loading env variables: %s", err.Error())
-	}
 
 	db, err := repository.NewPostgres(repository.Config{
 		Host:     viper.GetString("db.host"),
 		Port:     viper.GetString("db.port"),
 		Username: viper.GetString("db.username"),
-		Password: os.Getenv("DB_PASSWORD"),
+		Password: viper.GetString("db.password"),
 		DbName:   viper.GetString("db.dbname"),
 		SSlmode:  viper.GetString("db.sslmode"),
 	})

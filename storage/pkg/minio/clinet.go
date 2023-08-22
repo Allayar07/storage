@@ -6,9 +6,9 @@ import (
 	"github.com/minio/minio-go/v7/pkg/credentials"
 )
 
-func NewMinioClient(endpoint, accesskeyId, secretaccesskeyId string) (*minio.Client, error) {
+func NewMinioClient(endpoint, accessKeyId, secretKeyId string) (*minio.Client, error) {
 	minioClient, err := minio.New(endpoint, &minio.Options{
-		Creds:  credentials.NewStaticV4(accesskeyId, secretaccesskeyId, ""),
+		Creds:  credentials.NewStaticV4(accessKeyId, secretKeyId, ""),
 		Secure: false,
 		Region: "us-east-1",
 	})

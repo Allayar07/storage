@@ -8,8 +8,10 @@ import (
 	"github.com/sirupsen/logrus"
 	"gopkg.in/gomail.v2"
 	"io"
+	"log"
 	"os"
 	"storage/internal/repository"
+	"time"
 )
 
 const (
@@ -113,6 +115,72 @@ func (s *FileService) Delete(ctx context.Context, bucketName, key string) error 
 	if err := s.repo.DeleteFile(key); err != nil {
 		return err
 	}
+	return nil
+}
+
+// UploadFolder - uploading multiple files in one request
+func (s *FileService) UploadFolder(ctx context.Context, bucket string, path string) error {
+	inputFiles := make(chan minio.SnowballObject)
+
+	files, err := CollectForUploadFiles(path)
+	if err != nil {
+		return err
+	}
+
+	go func() {
+		defer close(inputFiles)
+
+		for _, file := range files {
+			inputFiles <- minio.SnowballObject{
+				Key:     file.Content.Name(),
+				Size:    file.Size,
+				ModTime: time.Now(),
+				Content: file.Content,
+				Close:   nil,
+			}
+		}
+	}()
+
+	opts := minio.SnowballOptions{
+		Opts: minio.PutObjectOptions{},
+		// Keep in memory. We use this since we have small total payload.
+		InMemory: false,
+		// Compress data when uploading to a MinIO host.
+		Compress: true,
+	}
+
+	if err = s.client.PutObjectsSnowball(ctx, bucket, opts, inputFiles); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *FileService) DeleteMultipleFiles(ctx context.Context, bucket, minioPath string) error {
+	objectsCh := make(chan minio.ObjectInfo)
+
+	// Send object names that are needed to be removed to objectsCh
+	go func() {
+		defer close(objectsCh)
+		// List all objects from a bucket-name with a matching prefix.
+		opts := minio.ListObjectsOptions{Prefix: minioPath, Recursive: true}
+		files := s.client.ListObjects(ctx, bucket, opts)
+		for object := range files {
+			if object.Err != nil {
+				log.Fatalln(object.Err)
+			}
+			objectsCh <- object
+		}
+	}()
+
+	// Call RemoveObjects API
+	errorCh := s.client.RemoveObjects(context.Background(), bucket, objectsCh, minio.RemoveObjectsOptions{})
+	for result := range errorCh {
+		if result.Err != nil {
+			return result.Err
+		}
+	}
+
 	return nil
 }
 
